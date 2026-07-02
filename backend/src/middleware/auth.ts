@@ -29,7 +29,7 @@ export const authenticate = (
 ): void => {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) {
-    return next(new UnauthorizedError('Authorization header with ****** is required'));
+    return next(new UnauthorizedError('Bearer token is required in the Authorization header'));
   }
 
   const token = authHeader.slice(7);
