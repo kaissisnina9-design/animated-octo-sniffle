@@ -115,6 +115,26 @@ describe('GET /api/v1/users/:id', () => {
   });
 });
 
+describe('GET /api/v1/users/me — get own profile', () => {
+  it('returns 401 without token', async () => {
+    const res = await request(app).get('/api/v1/users/me');
+    expect(res.status).toBe(401);
+  });
+
+  it('returns profile for authenticated user', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    mockDb.query.mockResolvedValueOnce({ rows: [mockUser], rowCount: 1 } as any);
+
+    const res = await request(app)
+      .get('/api/v1/users/me')
+      .set(bearerHeader(makeToken('viewer-uuid', 'viewer')));
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.user.email).toBe('user@test.com');
+    expect(res.body.data.user.password).toBeUndefined();
+  });
+});
+
 describe('PATCH /api/v1/users/me — update own profile', () => {
   it('returns 401 without token', async () => {
     const res = await request(app).patch('/api/v1/users/me').send({ first_name: 'Bob' });
@@ -141,6 +161,14 @@ describe('PATCH /api/v1/users/me — update own profile', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data.user.first_name).toBe('Bob');
+  });
+
+  it('returns 422 for invalid email in body', async () => {
+    const res = await request(app)
+      .patch('/api/v1/users/me')
+      .set(bearerHeader(makeToken('viewer-uuid', 'viewer')))
+      .send({ email: 'not-an-email' });
+    expect(res.status).toBe(422);
   });
 });
 
