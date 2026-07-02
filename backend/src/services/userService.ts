@@ -158,7 +158,7 @@ export async function deactivateUser(id: string, requesterId: string): Promise<A
   }
 
   const { rowCount } = await db.query(
-    'UPDATE users SET is_active = FALSE, updated_at = NOW() WHERE id = $1',
+    'UPDATE users SET is_active = FALSE, updated_at = NOW() WHERE id = $1 AND is_active = TRUE',
     [id]
   );
 
