@@ -3,50 +3,54 @@ import * as userController from '../controllers/userController';
 import { authenticate, authorize } from '../middleware/auth';
 import { validate } from '../middleware/validate';
 import {
-  updateProfileSchema,
-  changePasswordSchema,
-  adminUpdateUserSchema,
   paginationSchema,
   uuidParamSchema,
+  updateProfileSchema,
+  updatePasswordSchema,
+  adminUpdateUserSchema,
 } from '../utils/validators';
+import { auditLog } from '../middleware/auditLog';
 
 const router = Router();
 
-// All user routes require authentication
 router.use(authenticate);
 
-// Current user profile
+// Self-service routes (any authenticated user)
 router.get('/me', userController.getProfile);
 router.patch('/me', validate(updateProfileSchema), userController.updateProfile);
-router.patch('/me/password', validate(changePasswordSchema), userController.changePassword);
+router.patch('/me/password', validate(updatePasswordSchema), userController.updatePassword);
 
-// Admin / manager: list and view users
+// Admin/manager read routes
 router.get(
   '/',
   authorize('admin', 'manager'),
   validate(paginationSchema, 'query'),
-  userController.listUsers
+  userController.list
 );
+
 router.get(
   '/:id',
   authorize('admin', 'manager'),
   validate(uuidParamSchema, 'params'),
-  userController.getUserById
+  userController.get
 );
 
-// Admin only: update or deactivate a user
+// Admin-only write routes
 router.patch(
   '/:id',
   authorize('admin'),
   validate(uuidParamSchema, 'params'),
   validate(adminUpdateUserSchema),
-  userController.adminUpdateUser
+  auditLog('UPDATE_USER', 'user'),
+  userController.adminUpdate
 );
+
 router.delete(
   '/:id',
   authorize('admin'),
   validate(uuidParamSchema, 'params'),
-  userController.deactivateUser
+  auditLog('DEACTIVATE_USER', 'user'),
+  userController.deactivate
 );
 
 export default router;

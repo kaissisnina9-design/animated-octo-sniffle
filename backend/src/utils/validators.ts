@@ -62,9 +62,21 @@ export const changePasswordSchema = z.object({
     .regex(/[0-9]/, 'Password must contain a number'),
 });
 
+// Alias for backward compatibility
+export const updatePasswordSchema = changePasswordSchema;
+
 export const adminUpdateUserSchema = z.object({
   role: z.enum(['admin', 'manager', 'operator', 'viewer']).optional(),
   is_active: z.boolean().optional(),
   first_name: z.string().min(1).max(100).optional(),
   last_name: z.string().min(1).max(100).optional(),
+});
+
+export const auditLogQuerySchema = paginationSchema.extend({
+  user_id: z.string().uuid('Invalid user_id format').optional(),
+  action: z.string().min(1).max(255).optional(),
+  entity_type: z.string().min(1).max(100).optional(),
+  entity_id: z.string().uuid('Invalid entity_id format').optional(),
+  from: z.string().datetime({ offset: true, message: 'from must be an ISO 8601 datetime' }).optional(),
+  to: z.string().datetime({ offset: true, message: 'to must be an ISO 8601 datetime' }).optional(),
 });

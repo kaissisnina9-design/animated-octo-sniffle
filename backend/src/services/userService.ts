@@ -11,83 +11,6 @@ function toPublicUser(user: User): UserPublic {
   return publicUser;
 }
 
-export async function updateProfile(
-  userId: string,
-  updates: { first_name?: string; last_name?: string; email?: string }
-): Promise<ApiResponse<{ user: UserPublic }>> {
-  if (updates.email) {
-    const { rows: existing } = await db.query<User>(
-      'SELECT id FROM users WHERE email = $1 AND id != $2',
-      [updates.email.toLowerCase(), userId]
-    );
-    if (existing.length > 0) {
-      throw new ConflictError('An account with this email already exists');
-    }
-  }
-
-  const fields: string[] = [];
-  const values: unknown[] = [];
-  let paramIndex = 1;
-
-  if (updates.first_name !== undefined) {
-    fields.push(`first_name = $${paramIndex++}`);
-    values.push(updates.first_name);
-  }
-  if (updates.last_name !== undefined) {
-    fields.push(`last_name = $${paramIndex++}`);
-    values.push(updates.last_name);
-  }
-  if (updates.email !== undefined) {
-    fields.push(`email = $${paramIndex++}`);
-    values.push(updates.email.toLowerCase());
-  }
-
-  if (fields.length === 0) {
-    const { rows } = await db.query<User>('SELECT * FROM users WHERE id = $1', [userId]);
-    if (rows.length === 0) throw new NotFoundError('User');
-    return { success: true, data: { user: toPublicUser(rows[0]) } };
-  }
-
-  fields.push(`updated_at = NOW()`);
-  values.push(userId);
-
-  const { rows } = await db.query<User>(
-    `UPDATE users SET ${fields.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
-    values
-  );
-
-  if (rows.length === 0) throw new NotFoundError('User');
-
-  return { success: true, data: { user: toPublicUser(rows[0]) }, message: 'Profile updated' };
-}
-
-export async function changePassword(
-  userId: string,
-  currentPassword: string,
-  newPassword: string
-): Promise<ApiResponse> {
-  const { rows } = await db.query<User>('SELECT * FROM users WHERE id = $1', [userId]);
-
-  if (rows.length === 0) throw new NotFoundError('User');
-
-  const user = rows[0];
-  const valid = await bcrypt.compare(currentPassword, user.password);
-  if (!valid) {
-    throw new UnauthorizedError('Current password is incorrect');
-  }
-
-  const hashed = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
-  await db.query(
-    'UPDATE users SET password = $1, updated_at = NOW() WHERE id = $2',
-    [hashed, userId]
-  );
-
-  // Revoke all existing refresh tokens so other sessions are logged out
-  await db.query('DELETE FROM refresh_tokens WHERE user_id = $1', [userId]);
-
-  return { success: true, message: 'Password changed successfully' };
-}
-
 export async function listUsers(
   page: number,
   limit: number
@@ -119,34 +42,116 @@ export async function listUsers(
 export async function getUserById(id: string): Promise<ApiResponse<{ user: UserPublic }>> {
   const { rows } = await db.query<User>('SELECT * FROM users WHERE id = $1', [id]);
 
-  if (rows.length === 0) throw new NotFoundError('User');
+  if (rows.length === 0) {
+    throw new NotFoundError('User');
+  }
 
   return { success: true, data: { user: toPublicUser(rows[0]) } };
 }
 
-export async function adminUpdateUser(
-  id: string,
-  updates: { role?: UserRole; is_active?: boolean; first_name?: string; last_name?: string }
+export async function updateMyProfile(
+  userId: string,
+  updates: { first_name?: string; last_name?: string; email?: string }
 ): Promise<ApiResponse<{ user: UserPublic }>> {
+  if (updates.email) {
+    const { rows: existing } = await db.query<User>(
+      'SELECT id FROM users WHERE email = $1 AND id != $2',
+      [updates.email.toLowerCase(), userId]
+    );
+    if (existing.length > 0) {
+      throw new ConflictError('An account with this email already exists');
+    }
+  }
+
   const fields: string[] = [];
   const values: unknown[] = [];
-  let paramIndex = 1;
+  let idx = 1;
 
-  if (updates.role !== undefined) {
-    fields.push(`role = $${paramIndex++}`);
-    values.push(updates.role);
-  }
-  if (updates.is_active !== undefined) {
-    fields.push(`is_active = $${paramIndex++}`);
-    values.push(updates.is_active);
-  }
   if (updates.first_name !== undefined) {
-    fields.push(`first_name = $${paramIndex++}`);
+    fields.push(`first_name = $${idx++}`);
     values.push(updates.first_name);
   }
   if (updates.last_name !== undefined) {
-    fields.push(`last_name = $${paramIndex++}`);
+    fields.push(`last_name = $${idx++}`);
     values.push(updates.last_name);
+  }
+  if (updates.email !== undefined) {
+    fields.push(`email = $${idx++}`);
+    values.push(updates.email.toLowerCase());
+  }
+
+  if (fields.length === 0) {
+    return getUserById(userId);
+  }
+
+  fields.push(`updated_at = NOW()`);
+  values.push(userId);
+
+  const { rows } = await db.query<User>(
+    `UPDATE users SET ${fields.join(', ')} WHERE id = $${idx} RETURNING *`,
+    values
+  );
+
+  if (rows.length === 0) {
+    throw new NotFoundError('User');
+  }
+
+  return { success: true, data: { user: toPublicUser(rows[0]) }, message: 'Profile updated' };
+}
+
+export async function updateMyPassword(
+  userId: string,
+  currentPassword: string,
+  newPassword: string
+): Promise<ApiResponse> {
+  const { rows } = await db.query<User>('SELECT * FROM users WHERE id = $1', [userId]);
+
+  if (rows.length === 0) {
+    throw new NotFoundError('User');
+  }
+
+  const user = rows[0];
+  const valid = await bcrypt.compare(currentPassword, user.password);
+  if (!valid) {
+    throw new UnauthorizedError('Current password is incorrect');
+  }
+
+  const hashed = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+
+  await db.query(
+    'UPDATE users SET password = $1, updated_at = NOW() WHERE id = $2',
+    [hashed, userId]
+  );
+
+  // Revoke all refresh tokens so existing sessions are invalidated
+  await db.query('DELETE FROM refresh_tokens WHERE user_id = $1', [userId]);
+
+  return { success: true, message: 'Password updated successfully' };
+}
+
+export type AdminUserUpdates = Partial<Pick<User, 'first_name' | 'last_name' | 'is_active'> & { role: UserRole }>;
+
+export async function adminUpdateUser(
+  id: string,
+  updates: AdminUserUpdates
+): Promise<ApiResponse<{ user: UserPublic }>> {
+  const { rows: existing } = await db.query<User>('SELECT id FROM users WHERE id = $1', [id]);
+
+  if (existing.length === 0) {
+    throw new NotFoundError('User');
+  }
+
+  const fields: string[] = [];
+  const values: unknown[] = [];
+  let idx = 1;
+
+  const allowedFields = ['first_name', 'last_name', 'role', 'is_active'] as const;
+  for (const field of allowedFields) {
+    if (updates[field] !== undefined) {
+      // field is guaranteed to be one of the allowedFields literals — safe to interpolate
+      fields.push(`${field} = $${idx++}`);
+      values.push(updates[field]);
+    }
   }
 
   if (fields.length === 0) {
@@ -157,24 +162,28 @@ export async function adminUpdateUser(
   values.push(id);
 
   const { rows } = await db.query<User>(
-    `UPDATE users SET ${fields.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
+    `UPDATE users SET ${fields.join(', ')} WHERE id = $${idx} RETURNING *`,
     values
   );
 
-  if (rows.length === 0) throw new NotFoundError('User');
-
-  return { success: true, data: { user: toPublicUser(rows[0]) }, message: 'User updated' };
+  return { success: true, data: { user: toPublicUser(rows[0]) } };
 }
 
-export async function deactivateUser(id: string): Promise<ApiResponse> {
+export async function deactivateUser(id: string, requesterId: string): Promise<ApiResponse> {
+  if (id === requesterId) {
+    throw new ConflictError('Cannot deactivate your own account');
+  }
+
   const { rowCount } = await db.query(
     'UPDATE users SET is_active = FALSE, updated_at = NOW() WHERE id = $1 AND is_active = TRUE',
     [id]
   );
 
-  if (rowCount === 0) throw new NotFoundError('User');
+  if (rowCount === 0) {
+    throw new NotFoundError('User');
+  }
 
-  // Revoke all refresh tokens for the deactivated user
+  // Revoke all refresh tokens so the deactivated user is logged out immediately
   await db.query('DELETE FROM refresh_tokens WHERE user_id = $1', [id]);
 
   return { success: true, message: 'User deactivated' };
