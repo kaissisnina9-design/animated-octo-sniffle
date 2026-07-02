@@ -109,6 +109,9 @@ export async function updateMyPassword(
     [hashed, userId]
   );
 
+  // Revoke all refresh tokens so existing sessions are invalidated
+  await db.query('DELETE FROM refresh_tokens WHERE user_id = $1', [userId]);
+
   return { success: true, message: 'Password updated successfully' };
 }
 
@@ -162,6 +165,9 @@ export async function deactivateUser(id: string, requesterId: string): Promise<A
   if (rowCount === 0) {
     throw new NotFoundError('User');
   }
+
+  // Revoke all refresh tokens so the deactivated user is logged out immediately
+  await db.query('DELETE FROM refresh_tokens WHERE user_id = $1', [id]);
 
   return { success: true, message: 'User deactivated' };
 }
