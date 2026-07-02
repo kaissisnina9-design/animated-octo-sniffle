@@ -1,0 +1,45 @@
+services:
+  api:
+    build:
+      context: ./backend
+      target: builder
+    command: npm run dev
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: rowsentry
+      DB_USER: rowsentry_user
+      DB_PASSWORD: devpassword
+      JWT_SECRET: dev-jwt-secret-change-in-production-must-be-long
+      JWT_REFRESH_SECRET: dev-refresh-secret-change-in-production-must-be-long
+      CORS_ORIGIN: http://localhost:3000
+    volumes:
+      - ./backend/src:/app/src
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: rowsentry
+      POSTGRES_USER: rowsentry_user
+      POSTGRES_PASSWORD: devpassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rowsentry_user -d rowsentry"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
