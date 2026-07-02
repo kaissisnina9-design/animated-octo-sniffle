@@ -129,9 +129,11 @@ export async function updateMyPassword(
   return { success: true, message: 'Password updated successfully' };
 }
 
+export type AdminUserUpdates = Partial<Pick<User, 'first_name' | 'last_name' | 'is_active'> & { role: UserRole }>;
+
 export async function adminUpdateUser(
   id: string,
-  updates: Partial<Pick<User, 'first_name' | 'last_name' | 'is_active'> & { role: UserRole }>
+  updates: AdminUserUpdates
 ): Promise<ApiResponse<{ user: UserPublic }>> {
   const { rows: existing } = await db.query<User>('SELECT id FROM users WHERE id = $1', [id]);
 
@@ -146,6 +148,7 @@ export async function adminUpdateUser(
   const allowedFields = ['first_name', 'last_name', 'role', 'is_active'] as const;
   for (const field of allowedFields) {
     if (updates[field] !== undefined) {
+      // field is guaranteed to be one of the allowedFields literals — safe to interpolate
       fields.push(`${field} = $${idx++}`);
       values.push(updates[field]);
     }
