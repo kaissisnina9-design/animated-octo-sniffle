@@ -47,11 +47,10 @@ export async function listAuditLogs(
 
   const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
-  const countValues = [...values];
   const limitValues = [...values, limit, offset];
 
   const [{ rows: countRows }, { rows: data }] = await Promise.all([
-    db.query<{ count: string }>(`SELECT COUNT(*) FROM audit_logs ${where}`, countValues),
+    db.query<{ count: string }>(`SELECT COUNT(*) FROM audit_logs ${where}`, values),
     db.query<AuditLog>(
       `SELECT * FROM audit_logs ${where} ORDER BY created_at DESC LIMIT $${idx} OFFSET $${idx + 1}`,
       limitValues
