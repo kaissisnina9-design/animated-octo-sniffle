@@ -7,10 +7,10 @@ import rateLimit from 'express-rate-limit';
 import { config } from './config/env';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import authRoutes from './routes/auth';
+import userRoutes from './routes/users';
 import warehouseRoutes from './routes/warehouses';
 import rowRoutes from './routes/rows';
 import alertRoutes from './routes/alerts';
-import userRoutes from './routes/users';
 
 export function createApp(): Application {
   const app = express();
@@ -65,10 +65,10 @@ export function createApp(): Application {
   // API routes
   const API_PREFIX = '/api/v1';
   app.use(`${API_PREFIX}/auth`, authRoutes);
+  app.use(`${API_PREFIX}/users`, userRoutes);
   app.use(`${API_PREFIX}/warehouses`, warehouseRoutes);
   app.use(`${API_PREFIX}/warehouses/:warehouseId/rows`, rowRoutes);
   app.use(`${API_PREFIX}/alerts`, alertRoutes);
-  app.use(`${API_PREFIX}/users`, userRoutes);
 
   // 404 handler
   app.use(notFoundHandler);

@@ -1,6 +1,15 @@
 import { Request, Response, NextFunction } from 'express';
 import * as userService from '../services/userService';
 
+export const getProfile = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const result = await userService.getUserById(req.user!.sub);
+    res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
 export const list = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { page, limit } = req.query as { page: string; limit: string };

@@ -51,8 +51,18 @@ export async function getUserById(id: string): Promise<ApiResponse<{ user: UserP
 
 export async function updateMyProfile(
   userId: string,
-  updates: Partial<Pick<User, 'first_name' | 'last_name'>>
+  updates: { first_name?: string; last_name?: string; email?: string }
 ): Promise<ApiResponse<{ user: UserPublic }>> {
+  if (updates.email) {
+    const { rows: existing } = await db.query<User>(
+      'SELECT id FROM users WHERE email = $1 AND id != $2',
+      [updates.email.toLowerCase(), userId]
+    );
+    if (existing.length > 0) {
+      throw new ConflictError('An account with this email already exists');
+    }
+  }
+
   const fields: string[] = [];
   const values: unknown[] = [];
   let idx = 1;
@@ -64,6 +74,10 @@ export async function updateMyProfile(
   if (updates.last_name !== undefined) {
     fields.push(`last_name = $${idx++}`);
     values.push(updates.last_name);
+  }
+  if (updates.email !== undefined) {
+    fields.push(`email = $${idx++}`);
+    values.push(updates.email.toLowerCase());
   }
 
   if (fields.length === 0) {
@@ -82,7 +96,7 @@ export async function updateMyProfile(
     throw new NotFoundError('User');
   }
 
-  return { success: true, data: { user: toPublicUser(rows[0]) } };
+  return { success: true, data: { user: toPublicUser(rows[0]) }, message: 'Profile updated' };
 }
 
 export async function updateMyPassword(

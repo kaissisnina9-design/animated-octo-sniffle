@@ -50,9 +50,10 @@ export const uuidParamSchema = z.object({
 export const updateProfileSchema = z.object({
   first_name: z.string().min(1).max(100).optional(),
   last_name: z.string().min(1).max(100).optional(),
+  email: z.string().email('Invalid email address').optional(),
 });
 
-export const updatePasswordSchema = z.object({
+export const changePasswordSchema = z.object({
   current_password: z.string().min(1),
   new_password: z
     .string()
@@ -60,6 +61,9 @@ export const updatePasswordSchema = z.object({
     .regex(/[A-Z]/, 'Password must contain an uppercase letter')
     .regex(/[0-9]/, 'Password must contain a number'),
 });
+
+// Alias for backward compatibility
+export const updatePasswordSchema = changePasswordSchema;
 
 export const adminUpdateUserSchema = z.object({
   role: z.enum(['admin', 'manager', 'operator', 'viewer']).optional(),

@@ -16,6 +16,7 @@ const router = Router();
 router.use(authenticate);
 
 // Self-service routes (any authenticated user)
+router.get('/me', userController.getProfile);
 router.patch('/me', validate(updateProfileSchema), userController.updateProfile);
 router.patch('/me/password', validate(updatePasswordSchema), userController.updatePassword);
 
