@@ -10,6 +10,7 @@ import authRoutes from './routes/auth';
 import warehouseRoutes from './routes/warehouses';
 import rowRoutes from './routes/rows';
 import alertRoutes from './routes/alerts';
+import userRoutes from './routes/users';
 
 export function createApp(): Application {
   const app = express();
@@ -67,6 +68,7 @@ export function createApp(): Application {
   app.use(`${API_PREFIX}/warehouses`, warehouseRoutes);
   app.use(`${API_PREFIX}/warehouses/:warehouseId/rows`, rowRoutes);
   app.use(`${API_PREFIX}/alerts`, alertRoutes);
+  app.use(`${API_PREFIX}/users`, userRoutes);
 
   // 404 handler
   app.use(notFoundHandler);

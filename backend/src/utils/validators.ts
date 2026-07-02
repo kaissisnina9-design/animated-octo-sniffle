@@ -46,3 +46,24 @@ export const paginationSchema = z.object({
 export const uuidParamSchema = z.object({
   id: z.string().uuid('Invalid ID format'),
 });
+
+export const updateProfileSchema = z.object({
+  first_name: z.string().min(1).max(100).optional(),
+  last_name: z.string().min(1).max(100).optional(),
+});
+
+export const updatePasswordSchema = z.object({
+  current_password: z.string().min(1),
+  new_password: z
+    .string()
+    .min(8, 'Password must be at least 8 characters')
+    .regex(/[A-Z]/, 'Password must contain an uppercase letter')
+    .regex(/[0-9]/, 'Password must contain a number'),
+});
+
+export const adminUpdateUserSchema = z.object({
+  role: z.enum(['admin', 'manager', 'operator', 'viewer']).optional(),
+  is_active: z.boolean().optional(),
+  first_name: z.string().min(1).max(100).optional(),
+  last_name: z.string().min(1).max(100).optional(),
+});
